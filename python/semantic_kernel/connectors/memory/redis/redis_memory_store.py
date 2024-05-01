@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft. All rights reserved.
 
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 import redis
@@ -44,7 +44,7 @@ class RedisMemoryStore(MemoryStoreBase):
 
     def __init__(
         self,
-        connection_string: str,
+        connection: Union[str, redis.Redis],
         vector_size: int = 1536,
         vector_distance_metric: str = "COSINE",
         vector_type: str = "FLOAT32",
@@ -58,7 +58,7 @@ class RedisMemoryStore(MemoryStoreBase):
         See documentation about vector attributes: https://redis.io/docs/stack/search/reference/vectors
 
         Arguments:
-            connection_string {str} -- Provide connection URL to a Redis instance
+            connection {str, redis.Redis} -- Provide either connection URL to a Redis instance or an existing Redis connection
             vector_size {str} -- Size of vectors, defaults to 1536
             vector_distance_metric {str} -- Metric for measuring vector distances, defaults to COSINE
             vector_type {str} -- Vector type, defaults to FLOAT32
@@ -71,7 +71,12 @@ class RedisMemoryStore(MemoryStoreBase):
         if vector_size <= 0:
             raise ServiceInitializationError("Vector dimension must be a positive integer")
 
-        self._database = redis.Redis.from_url(connection_string)
+        if isinstance(connection, str):
+            self._database = redis.Redis.from_url(connection)
+        elif isinstance(connection, redis.Redis):
+            self._database = connection
+        else:
+            raise ServiceInitializationError("Invalid connection type. Please provide either a connection URL or existing Redis connection.")
         self._ft = self._database.ft
 
         self._query_dialect = query_dialect
